@@ -1,4 +1,4 @@
- const API_URL = "https://script.google.com/macros/s/AKfycbxnmUcuFVLLK7pg9NsP8YVtC9LFjvhVMOV7vt08MWX09MIKl9LuNgZX4LXmR7jvHoZZ/exec"; 
+ const API_URL = "https://script.google.com/macros/s/AKfycbzU_6xo1XsbuYdy6cwgUQCDwmdr49Og7h02-e2JdadzkKMIptyq_IxijDP0KVX3bM5_Qg/exec"; 
     let allSubjectsData = {}; 
     let routineData = {};
     let currentStudents = [];
@@ -7,7 +7,7 @@
     let currentCalendarDate = new Date();
 
     let currentPage = 1;
-    const rowsPerPage = 200;
+    const rowsPerPage = 500;
 
     const uID = sessionStorage.getItem("userId"); 
     if(!uID){location.href="index.html";}
@@ -16,8 +16,9 @@
     document.body.classList.add('loading');
 
     function initDropdowns() {
-        fill("selectInst", ["Pirgonj Polytechnic Institute", "Ranisonkoil Polytechnic Institute", "Ranisankail Ideal Non-Govt. Polytechnic Institute"]);
-        fill("selectTech", ["(64) Civil", "(66) Computer", "(67) Electrical", "(70) Mechanical", "(85) Computer"]);
+        fill("selectInst", ["City Polytechnic Institute", "Confidence Polytechnic Institute",   "Dhamrai Polytechnic Institute",   "New Ideal Polytechnic Institute", 
+            "N. Islam Institute of Science & Technology",   "National Polytechnic Institute Manikganj",   "Raylla Abdul Jabbar Polytechnic Institute"]);
+        fill("selectTech", ["(61) Architecture", "(62) Automobile", "(64) Civil", "(66) Computer", "(67) Electrical", "(69) Food", "(70) Mechanical", "(78) Surveying", "(85) Computer"]);
         fill("selectSemi", ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"]);
         fill("selectSyllabus", ["2022", "2016"]);
     }
