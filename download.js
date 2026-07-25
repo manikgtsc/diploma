@@ -73,8 +73,8 @@ function downloadSeatLabels() {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Seat Labels');
 
-        const centerName = "Pirgonj Govt. Technical School & College";
-        const examTitle = "Diploma in Engineering Examination 2026";
+        const centerName = "Manikganj Govt. Technical School & College";
+        const examTitle = "Diploma in Engineering Examination 2025";
 
         // কলামের প্রশস্ততা সেট করা
         worksheet.columns = [ { width: 18 }, { width: 20 }, { width: 3 },  { width: 18 }, 
@@ -372,7 +372,7 @@ function downloadQuestionCountPDF() {
 
             doc.setFontSize(12);
             doc.text("Question Count", doc.internal.pageSize.getWidth()/2, 15, {align:"center"});
-            doc.text("Center: Pirganj Govt. Technical School & College, Thakurgaon", doc.internal.pageSize.getWidth()/2, 22, {align:"center"});
+            doc.text("Center: Manikganj Govt. Technical School & College, Manikganj", doc.internal.pageSize.getWidth()/2, 22, {align:"center"});
 
             doc.autoTable({
                 startY: 25,
