@@ -5,6 +5,7 @@
     let selectedDate = ""; 
     let examDates = [];
     let currentCalendarDate = new Date();
+    let showPracticalExaminess = false;
 
     let currentPage = 1;
     const rowsPerPage = 500;
@@ -12,7 +13,7 @@
     const uID = sessionStorage.getItem("userId"); 
     if(!uID){location.href="index.html";}
 
-    window.onload = function() {initDropdowns(); fetchAllData();};
+    window.onload = function() { initDropdowns();  fetchAllData(); checkAndRestoreSessionData();};
     document.body.classList.add('loading');
 
     function initDropdowns() {
@@ -68,6 +69,26 @@
             });
     }
 
+    function checkAndRestoreSessionData() {
+        const savedCode = sessionStorage.getItem("activeSubjectCode");
+        const savedStudents = sessionStorage.getItem("activeStudentsData");
+
+        if (savedCode && savedStudents) {
+            document.getElementById("searchInput").value = savedCode;
+            currentStudents = JSON.parse(savedStudents);
+            const subInfo = allSubjectsData.find(s => s.code.toString().trim() === savedCode.trim());
+            if (subInfo) {
+                updateSubjectDisplay(savedCode, subInfo);
+            } else {
+                document.getElementById("subDisplayCode").innerText = savedCode;
+            }
+
+            currentPage = 1;
+            renderTablePage();
+            genSummary(currentStudents);
+        }
+    }
+
     function generateDateButtons() {
         examDates = Object.keys(routineData).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/)).sort();
         currentCalendarDate = new Date(examDates[0]);
@@ -112,22 +133,35 @@
     }
 
     function searchBySubjectCode() {
+        showPracticalExaminess = false;
         const code = document.getElementById("searchInput").value.trim();
-        const subInfo = allSubjectsData.find(s => s.code === code);
+
+        if (!code) { Swal.fire("খালি ইনপুট", "দয়া করে একটি বিষয় কোড দিন।", "warning"); return; }
+
+        const subInfo = allSubjectsData.find(s => s.code.toString().trim() === code);
         
         if (!subInfo) { Swal.fire("Invalid Subject Code", "এই subject code টি ডাটাবেসে পাওয়া যায়নি।", "error");   return;}
         
         updateSubjectDisplay(code, subInfo);
-        
         Swal.fire({ title: 'Loading...', didOpen: () => Swal.showLoading() });
+        sessionStorage.removeItem("activeSubjectCode");
+        sessionStorage.removeItem("activeStudentsData");
+
         fetch(API_URL + "?action=searchByCode&code=" + code)
             .then(r => r.json())
             .then(res => {
                 Swal.close();
-                currentStudents = res.students;
+                currentStudents = res.students || [];
+                sessionStorage.setItem("activeSubjectCode", code);
+                sessionStorage.setItem("activeStudentsData", JSON.stringify(currentStudents));
                 currentPage = 1; 
                 renderTablePage(); 
                 genSummary(currentStudents);
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.close();
+                Swal.fire("Error", "ডাটা লোড করতে সমস্যা হয়েছে।", "error");
             });
     }
 
@@ -145,35 +179,63 @@
         });
     }
 
+
     function renderTablePage() {
         const tbody = document.getElementById("mytbody");
+        if (!tbody) return;
         tbody.innerHTML = "";
 
         const totalStudents = currentStudents.length;
         const totalPages = Math.ceil(totalStudents / rowsPerPage) || 1;
 
-        //Data Table এর যে পেজ দেখানো হবে সেই পেজ এর start & end index নির্ণয়
         const startIndex = (currentPage - 1) * rowsPerPage;
         const endIndex = Math.min(startIndex + rowsPerPage, totalStudents);
         const pageData = currentStudents.slice(startIndex, endIndex);
 
-        tbody.innerHTML = pageData.map(s => `
-            <tr>
-                <td>${s.sl}</td>
-                <td class="fw-bold">${s.roll}</td>
-                <td>${s.semi}</td>
-                <td>${s.dept}</td>                                
-                <td class="text-start">${s.name}</td>
-                <td>${s.subcodeDetails}</td>
-                <td><button class="btn btn-sm btn-info text-white" onclick="showDetails('${s.roll}')">Details</button></td>
-            </tr>
-        `).join('');
+        if (pageData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">কোন ডাটা পাওয়া যায়নি</td></tr>`;
+        } else {
 
-        document.getElementById("count").innerText = "Total Student: " + totalStudents;
-        document.getElementById("pageInfo").innerText = `Page ${currentPage} of ${totalPages} (Rows: ${startIndex + 1}-${endIndex})`;
-        document.getElementById("prevBtn").disabled = (currentPage === 1);
-        document.getElementById("nextBtn").disabled = (currentPage === totalPages);
+            let practicalRolls = [];
+            if(showPracticalExaminess){
+                const practicalList = getPracticalExaminees(currentStudents);
+                practicalRolls = new Set(practicalList.map(s => s.roll));
+            }
+
+            tbody.innerHTML = pageData.map(s => {
+
+                let rowClass = "";
+                if (showPracticalExaminess){
+                const isPractical = practicalRolls.has(s.roll);  rowClass = isPractical ? "" : "table-danger";
+                }
+                                                                    
+                return `
+                    <tr class="${rowClass}">
+                        <td>${s.sl || ''}</td>
+                        <td class="fw-bold">${s.roll || ''}</td>
+                        <td>${s.semi || ''}</td>
+                        <td>${s.dept || ''}</td>                                
+                        <td class="text-start">${s.name || ''}</td>
+                        <td>${s.subcodeDetails || ''}</td>
+                        <td><button class="btn btn-sm btn-info text-white" onclick="showDetails('${s.roll}')">Details</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        const countElem = document.getElementById("count");
+        if (countElem) countElem.innerText = "Total Student: " + totalStudents;
+        
+        const pageInfoElem = document.getElementById("pageInfo");
+        if (pageInfoElem) pageInfoElem.innerText = `Page ${currentPage} of ${totalPages} (Rows: ${totalStudents > 0 ? startIndex + 1 : 0}-${endIndex})`;
+        
+        const prevBtn = document.getElementById("prevBtn");
+        if (prevBtn) prevBtn.disabled = (currentPage === 1);
+        
+        const nextBtn = document.getElementById("nextBtn");
+        if (nextBtn) nextBtn.disabled = (currentPage === totalPages || totalPages === 0);
     }
+
 
     function changePage(direction) {
         const totalPages = Math.ceil(currentStudents.length / rowsPerPage) || 1;
@@ -256,16 +318,21 @@
     function sortTable(type) {
         if (type === 'roll') currentStudents.sort((a, b) => a.roll - b.roll);
         else currentStudents.sort((a, b) => a.sl - b.sl);
-        currentPage = 1;     // সর্ট করার পর প্রথম পেজ থেকে ভিউ দেখাবে
+        currentPage = 1;  
         renderTablePage();
     }
 
     function validateSubCode(val) {
-        if (!val || !allSubjectsData || !Array.isArray(allSubjectsData)) return;
+        if (!val || !allSubjectsData || !Array.isArray(allSubjectsData)) {
+            document.getElementById("subDisplayCode").innerText = "---";
+            document.getElementById("subDisplayName").innerText = "---";
+            return;
+        }
 
         const subInfo = allSubjectsData.find(s => s.code.toString().trim() === val.trim());
         
-        if (subInfo) {  updateSubjectDisplay(val.trim(), subInfo);
+        if (subInfo) {  
+            updateSubjectDisplay(val.trim(), subInfo);
         } else {
             document.getElementById("subDisplayCode").innerText = "---";
             document.getElementById("subDisplayName").innerText = "---";
@@ -355,6 +422,9 @@
     }
 
     function filterSearch() {
+
+        sessionStorage.removeItem("activeSubjectCode");
+        sessionStorage.removeItem("activeStudentsData");
         const inst = document.getElementById("selectInst").value;
         const tech = document.getElementById("selectTech").value;
         const semi = document.getElementById("selectSemi").value;
@@ -372,10 +442,9 @@
                 Swal.close();
                 if (res.students && res.students.length > 0) {
                     currentStudents = res.students;
-                    currentPage = 1;      // নতুন ফিল্টারে ১ম পেজে সেট হবে
+                    currentPage = 1;    
                     renderTablePage();
                     genSummary(currentStudents);
-                    
                     document.getElementById("subDisplayCode").innerText = "Multiple/Filtered";
                     document.getElementById("subDisplayName").innerText = "Filtered Results";
                 } else {
