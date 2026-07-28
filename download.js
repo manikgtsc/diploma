@@ -11,8 +11,8 @@ function downloadRolls() {
 
         // Column Header Set
         worksheet.columns = [
-            { header: 'Code', key: 'code', width: 15 }, { header: 'Nos', key: 'nos', width: 10 },
-            { header: 'SL No', key: 'sl', width: 12 }, { header: 'Roll Number', key: 'roll', width: 20 }
+            { header: 'Code', key: 'code', width: 15 }, { header: 'Nos', key: 'nos', width: 10 }, { header: 'SL No', key: 'sl', width: 12 },
+            { header: 'Roll Number', key: 'roll', width: 20 },  { header: 'Type', key: 'type', width: 12 },
         ];
 
         // Header Design
@@ -26,7 +26,7 @@ function downloadRolls() {
 
         // Data Insert
         currentStudents.forEach((student, index) => {
-            const rowData = { sl: student.sl || (index + 1), roll: student.roll };
+            const rowData = { sl: student.sl || (index + 1), roll: student.roll, type: student.type};
             // rowData (Object) এর code & nos key তে কেবলমাত্র শুরুতে value যুক্ত হবে, পরে আর নয়... 
             if (index === 0) { rowData.code = subCode; rowData.nos = totalExaminees; }
             const row = worksheet.addRow(rowData);
@@ -564,19 +564,29 @@ function downloadQuestionCountPDF() {
         });
 }
 
-
 function showPracticalExamineesTable() {
-    const practicalExaminees = getPracticalExaminees(currentStudents)
+    if (!currentStudents || currentStudents.length === 0) {
+        if (window.Swal) Swal.fire("তথ্য নেই", "খুঁজে পাওয়ার মতো কোনো শিক্ষার্থী নেই।", "warning");
+        return;
+    }
 
-    if (practicalExaminees.length > 0) {
-        renderTable(practicalExaminees);
-        document.getElementById("subDisplayCode").innerText = "Practical List";
-        Swal.fire("সফল!", `মোট ${practicalExaminees.length} জন ব্যবহারিক পরীক্ষার্থী পাওয়া গেছে।`, "success");
-    } else {Swal.fire("দুঃখিত", "কোনো ব্যবহারিক পরীক্ষার্থী পাওয়া যায়নি।", "info");}
+    const practicalExaminees = getPracticalExaminees(currentStudents);
+    const nonPracticalCount = currentStudents.length - practicalExaminees.length;
+    showPracticalExaminess = true;
+
+    renderTablePage();
+    if (window.Swal) {
+        Swal.fire(
+            "ব্যবহারিক চেক সম্পন্ন!", 
+            `মোট ${currentStudents.length} জনের মধ্যে ${practicalExaminees.length} জনের ব্যবহারিক আছে।<br>যাদের ব্যবহারিক নেই (${nonPracticalCount} জন) তাদের রো লাল রঙে হাইলাইট করা হয়েছে।`, 
+            "info"
+        );
+    }
 }
 
+
 function getPracticalExaminees(studentsList) {
-    const pracSemesters = new Set([1, 2, 4, 6]); 
+    const pracSemesters = new Set([2, 3, 5, 7]); 
     const practicalExaminees = studentsList.filter(stu => {
 
         const currentSemi = (stu.semi || "").toString().trim();
