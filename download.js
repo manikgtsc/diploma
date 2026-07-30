@@ -11,8 +11,12 @@ function downloadRolls() {
 
         // Column Header Set
         worksheet.columns = [
-            { header: 'Code', key: 'code', width: 15 }, { header: 'Nos', key: 'nos', width: 10 }, { header: 'SL No', key: 'sl', width: 12 },
-            { header: 'Roll Number', key: 'roll', width: 20 },  { header: 'Type', key: 'type', width: 12 },
+            { header: 'Code', key: 'code', width: 15 }, 
+            { header: 'Nos', key: 'nos', width: 10 }, 
+            { header: 'SL No', key: 'sl', width: 12 },
+            { header: 'Roll Number', key: 'roll', width: 20 }, 
+            { header: 'Type', key: 'type', width: 12 },
+            { header: 'Semi', key: 'semi', width: 12 }
         ];
 
         // Header Design
@@ -24,16 +28,47 @@ function downloadRolls() {
         const subCode = document.getElementById("subDisplayCode").innerText || "N/A";
         const totalExaminees = currentStudents.length;
 
-        // Data Insert
-        currentStudents.forEach((student, index) => {
-            const rowData = { sl: student.sl || (index + 1), roll: student.roll, type: student.type};
-            // rowData (Object) এর code & nos key তে কেবলমাত্র শুরুতে value যুক্ত হবে, পরে আর নয়... 
-            if (index === 0) { rowData.code = subCode; rowData.nos = totalExaminees; }
+        // --- প্রথমে Type এবং পরে Semi দিয়ে সর্ট করার লজিক ---
+        const sortedStudents = [...currentStudents].sort((a, b) => {
+            const typeA = String(a.type || '').trim();
+            const typeB = String(b.type || '').trim();
+
+            // ১. টাইপ অনুযায়ী তুলনা (Regular আগে, Irregular পরে)
+            const typeComparison = typeA.localeCompare(typeB);
+
+            // টাইপ যদি ভিন্ন হয়, তবে টাইপের ক্রমানুসারেই রিটার্ন হবে
+            if (typeComparison !== 0) {
+                return typeComparison; 
+            }
+
+            // ২. টাইপ যদি একই হয়, তবে semi অনুযায়ী সর্ট হবে
+            if (typeof a.semi === 'number' && typeof b.semi === 'number') {
+                return a.semi - b.semi;
+            }
+            return String(a.semi || '').localeCompare(String(b.semi || ''), undefined, { numeric: true });
+        });
+
+        // Data Insert (সর্ট করা sortedStudents ব্যবহার করা হয়েছে)
+        sortedStudents.forEach((student, index) => {
+            const rowData = { sl: student.sl || (index + 1), roll: student.roll, type: student.type, semi: student.semi };
+            
+            // rowData (Object) এর code & nos key তে কেবল মাত্র শুরুতে value যুক্ত হবে
+            if (index === 0) { 
+                rowData.code = subCode; 
+                rowData.nos = totalExaminees; 
+            }
+            
             const row = worksheet.addRow(rowData);
+            
             // Alignment & Border Set
             row.eachCell((cell, colNumber) => {
                 cell.alignment = { horizontal: 'center' };
-                cell.border = {  top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }  };
+                cell.border = { 
+                    top: { style: 'thin' }, 
+                    left: { style: 'thin' }, 
+                    bottom: { style: 'thin' }, 
+                    right: { style: 'thin' } 
+                };
             });
         });
 
@@ -50,17 +85,17 @@ function downloadRolls() {
 
                 window.URL.revokeObjectURL(url);
                 Swal.close();
-                Swal.fire("সফল!", "এক্সেল ফাইলটি তৈরি হয়েছে।", "success");
+                Swal.fire("সফল!", "রোলগুলো Download হয়েছে।", "success");
             })
             .catch(function (error) {
                 console.error(error);
                 Swal.fire("Error", "ফাইল তৈরি করতে সমস্যা হয়েছে।", "error");
             });
     } catch (error) {
-        console.error(error); Swal.fire("Error", "সিস্টেম এরর!", "error");
+        console.error(error); 
+        Swal.fire("Error", "সিস্টেম এরর!", "error");
     }
 }
-
 
 function downloadSeatLabels() {
     if (currentStudents.length === 0) {
@@ -314,7 +349,6 @@ function downloadRoutine() {
     }
 }
 
-
 function downloadQuestionCountExcel() {
     Swal.fire({
         title: 'Excel ফাইল তৈরি হচ্ছে...',
@@ -452,7 +486,6 @@ function downloadQuestionCountExcel() {
         });
 }
 
-
 function downloadQuestionCountPDF() {
     Swal.fire({
         title: 'প্রসেসিং হচ্ছে...',
@@ -584,7 +617,6 @@ function showPracticalExamineesTable() {
     }
 }
 
-
 function getPracticalExaminees(studentsList) {
     const pracSemesters = new Set([2, 3, 5, 7]); 
     const practicalExaminees = studentsList.filter(stu => {
@@ -672,7 +704,6 @@ async function downloadAttendanceSheet() {
         Swal.fire("Error", "ডাটা প্রসেস করতে সমস্যা হয়েছে!", "error");
     }
 }
-
 
 function calculateCenterFee() {
     const selectedInst = document.getElementById("specInst").value;
