@@ -15,7 +15,7 @@
     if(!uID){location.href="index.html";}
 
     window.onload = function() { initDropdowns();  fetchAllData();};
-    //document.body.classList.add('loading');
+    document.body.classList.add('loading');
 
     function initDropdowns() {
         fill("selectInst", ["City Polytechnic Institute", "Confidence Polytechnic Institute",   "Dhamrai Polytechnic Institute",   "New Ideal Polytechnic Institute", 
@@ -426,7 +426,6 @@
             .then(r => r.json())
             .then(res => {
                 Swal.close();
-                // FIX: res যদি সরাসরি অ্যারে হয় সেটির সেফ চেকিং
                 const studentsList = Array.isArray(res) ? res : (res.students || []);
 
                 if (studentsList.length > 0) {
