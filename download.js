@@ -608,7 +608,6 @@ function getPracticalExaminees(studentsList) {
 }
 
 async function downloadAttendanceSheet() {
-    // ১. SweetAlert2 দিয়ে SL নম্বর ইনপুট নেওয়া
     const { value: formValues } = await Swal.fire({
         title: 'হাজিরা শিট রেঞ্জ নির্ধারণ করুন',
         html:
@@ -624,15 +623,9 @@ async function downloadAttendanceSheet() {
         preConfirm: () => {
             const startSL = parseInt(document.getElementById('swal-input1').value);
             const endSL = parseInt(document.getElementById('swal-input2').value);
-
-            if (!startSL || !endSL) {
-                Swal.showValidationMessage('অনুগ্রহ করে উভয় SL নম্বর ইনপুট দিন');
-                return false;
-            }
-            if (startSL > endSL) {
-                Swal.showValidationMessage('শুরুর SL অবশ্যই শেষের SL এর থেকে ছোট বা সমান হতে হবে');
-                return false;
-            }
+            if (isNaN(startSL) || isNaN(endSL)) {  Swal.showValidationMessage('অনুগ্রহ করে সঠিক SL নম্বর ইনপুট দিন'); return false; }
+            if (startSL > endSL) { Swal.showValidationMessage('শুরুর SL অবশ্যই শেষের SL এর থেকে ছোট বা সমান হতে হবে');  return false; }
+            if ((endSL - startSL) > 50) { Swal.showValidationMessage('পার্থক্য ৫০ এর বেশি হতে পারবে না (সর্বোচ্চ ৫০টি SL নেওয়া যাবে)');  return false; }
             return { startSL, endSL };
         }
     });
@@ -641,7 +634,7 @@ async function downloadAttendanceSheet() {
     const { startSL, endSL } = formValues;
 
     Swal.fire({
-        title: 'সার্ভার থেকে ডাটা আনা হচ্ছে...',
+        title: 'Your request is being processed. Please wait a bit',
         allowOutsideClick: false,
         didOpen: () => { Swal.showLoading(); }
     });
