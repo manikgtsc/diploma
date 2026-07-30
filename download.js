@@ -607,20 +607,80 @@ function getPracticalExaminees(studentsList) {
     return practicalExaminees.length? practicalExaminees : [];
 }
 
-
-function downloadAttendanceSheet() {
-    const driveLink = "https://docs.google.com/spreadsheets/d/1Nf2NTlg5BGwWfzRiNz1jmPn88vRzd-1Jgcz8z2euDMI/edit?usp=sharing";
-    Swal.fire({
-        title: '<strong>Attendance Sheet Template</strong>',
-        icon: 'info',
-        html: `গুগল ড্রাইভ থেকে ফাইলটি .xlsm ফরম্যাটে ডাউনলোড করে ম্যাক্রো এনাবল করুন।`,
+async function downloadAttendanceSheet() {
+    // ১. SweetAlert2 দিয়ে SL নম্বর ইনপুট নেওয়া
+    const { value: formValues } = await Swal.fire({
+        title: 'হাজিরা শিট রেঞ্জ নির্ধারণ করুন',
+        html:
+            '<div class="text-start mb-2"><label class="fw-bold">শুরুর SL (Start):</label>' +
+            '<input id="swal-input1" type="number" class="swal2-input" placeholder="যেমন: 1"></div>' +
+            '<div class="text-start"><label class="fw-bold">শেষের SL (End):</label>' +
+            '<input id="swal-input2" type="number" class="swal2-input" placeholder="যেমন: 50"></div>',
+        focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Open Drive File',
-        confirmButtonColor: '#1e3a5f'
-    }).then((result) => {
-        if (result.isConfirmed) { window.open(driveLink, '_blank'); }
+        confirmButtonText: 'হাজিরা শিট দেখুন',
+        cancelButtonText: 'বাতিল',
+        confirmButtonColor: '#1e3a5f',
+        preConfirm: () => {
+            const startSL = parseInt(document.getElementById('swal-input1').value);
+            const endSL = parseInt(document.getElementById('swal-input2').value);
+
+            if (!startSL || !endSL) {
+                Swal.showValidationMessage('অনুগ্রহ করে উভয় SL নম্বর ইনপুট দিন');
+                return false;
+            }
+            if (startSL > endSL) {
+                Swal.showValidationMessage('শুরুর SL অবশ্যই শেষের SL এর থেকে ছোট বা সমান হতে হবে');
+                return false;
+            }
+            return { startSL, endSL };
+        }
     });
+
+    if (!formValues) return;
+    const { startSL, endSL } = formValues;
+
+    Swal.fire({
+        title: 'সার্ভার থেকে ডাটা আনা হচ্ছে...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    try {
+        const response = await fetch(`${API_URL}?action=specialSearch`);
+        const res = await response.json();
+        const studentList = Array.isArray(res) ? res : (res.students || []);
+        if (res.subjects) {localStorage.setItem('allSubjectsData', JSON.stringify(res.subjects));}
+
+        if (!studentList || studentList.length === 0) {
+            Swal.fire("ত্রুটি", "সার্ভার থেকে কোনো ডাটা পাওয়া যায়নি।", "error");
+            return;
+        }
+
+        const filteredAttendanceData = studentList.filter(student => {
+            const slRaw = student.sl || '0';
+            const sl = parseInt(slRaw.toString().replace(/\D/g, ''));
+            return sl >= startSL && sl <= endSL;
+        });
+
+        if (filteredAttendanceData.length === 0) {
+            Swal.fire("ডাটা পাওয়া যায়নি", `SL ${startSL} থেকে ${endSL} এর মধ্যে কোনো ডাটা পাওয়া যায়নি।`, "warning");
+            return;
+        }
+
+        sessionStorage.setItem('attendanceStudents', JSON.stringify(filteredAttendanceData));
+        sessionStorage.setItem('attendanceRange', JSON.stringify({ startSL, endSL }));
+
+        Swal.close();
+        window.open('atn_sheet.html', '_blank');
+
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        Swal.fire("Error", "ডাটা প্রসেস করতে সমস্যা হয়েছে!", "error");
+    }
 }
+
+
 function calculateCenterFee() {
     const selectedInst = document.getElementById("specInst").value;
     if (!selectedInst) { Swal.fire("Warning", "দয়া করে আগে একটি Institute সিলেক্ট করুন।", "warning"); return;}
