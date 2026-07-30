@@ -61,6 +61,10 @@
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbzU_6xo1XsbuYdy6cwgUQCDwmdr49Og7h02-e2JdadzkKMIptyq_IxijDP0KVX3bM5_Qg/exec";
 
+const lastFetchTime = Number(localStorage.getItem("lastFetchTime") || 0);
+const oneHour = 60 * 60 * 1000; 
+if (Date.now() - lastFetchTime > oneHour){clearCache();}
+
 function loginUser() {
   const uid = document.getElementById("userId").value.trim();
   const pwd = document.getElementById("password").value.trim();
@@ -82,9 +86,7 @@ function loginUser() {
       localStorage.setItem('allStudentsData', JSON.stringify(res.students))
       localStorage.setItem('routineData', JSON.stringify(res.routine));
       localStorage.setItem('lastFetchTime', Date.now());
-
       location.href = "diploma.html";
-
     } else {
       msg.innerText = "Invalid login!";
       btn.disabled = false;
@@ -98,6 +100,13 @@ function loginUser() {
     btn.innerHTML = "Login";
   });
 }
+
+
+function clearCache(){
+  [ "allSubjectsData", "allStudentsData", "routineData",  "lastFetchTime" ].forEach(key => localStorage.removeItem(key));
+  sessionStorage.removeItem("userId");
+}
+
 </script>
 </body>
 </html>
