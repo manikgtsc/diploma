@@ -418,35 +418,66 @@
 
         Swal.fire({ title: 'ফিল্টার করা হচ্ছে...', didOpen: () => Swal.showLoading() });
 
-        const params = new URLSearchParams({
-            action: "specificSearch", inst: inst, tech: tech, semi: semi, syllabus: syllabus
-        });
+        // ১. আগে চেক করি allStudentsData তে ডাটা আছে কিনা
+        const studentList = Array.isArray(allStudentsData) ? allStudentsData : (allStudentsData.students || []);
 
-        fetch(`${API_URL}?${params.toString()}`)
-            .then(r => r.json())
-            .then(res => {
-                Swal.close();
-                const studentsList = Array.isArray(res) ? res : (res.students || []);
+        if (studentList && studentList.length > 0) {
+            console.log("Filtering from Local Memory...");
+            
+            // Local Data থেকে ফিল্টার করা হচ্ছে
+            const filteredList = studentList.filter(student => {
+                if (!student) return false;
 
-                if (studentsList.length > 0) {
-                    currentStudents = studentsList;
-                    currentPage = 1;    
-                    renderTablePage();
-                    genSummary(currentStudents);
-                    document.getElementById("subDisplayCode").innerText = "Multiple/Filtered";
-                    document.getElementById("subDisplayName").innerText = "Filtered Results";
-                } else {
-                    currentStudents = [];
-                    currentPage = 1;
-                    renderTablePage();
-                    document.getElementById("instituteList").innerHTML = "No students found.";
-                    Swal.fire("দুঃখিত", "এই ফিল্টারে কোনো পরীক্ষার্থী পাওয়া যায়নি!", "info");
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire("Error", "সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।", "error");
+                // অপশনাল: আপনার ড্রপডাউনের ডাটার সাথে মিলিয়ে Filter Conditions তৈরি
+                const matchInst = !inst || student.inst === inst;
+                const matchTech = !tech || (student.dept && student.dept.includes(tech));
+                const matchSemi = !semi || student.semi === semi;
+                const matchSyllabus = !syllabus || student.syllabus === syllabus; // যদি আপনার ডাটায় syllabus ফিল্ড থাকে
+
+                return matchInst && matchTech && matchSemi && matchSyllabus;
             });
+
+            // রেজাল্ট হ্যান্ডলিং
+            processFilterResults(filteredList);
+            Swal.close();
+
+        } else {
+            // ২. যদি Local এ ডাটা না থাকে (Fallback mechanism), তবেই Server-এ যাবে
+            console.log("Local data empty. Fetching filter data from Server...");
+            const params = new URLSearchParams({
+                action: "specificSearch", inst: inst, tech: tech, semi: semi, syllabus: syllabus
+            });
+
+            fetch(`${API_URL}?${params.toString()}`)
+                .then(r => r.json())
+                .then(res => {
+                    Swal.close();
+                    const fetchedList = Array.isArray(res) ? res : (res.students || []);
+                    processFilterResults(fetchedList);
+                })
+                .catch(err => {
+                    console.error(err);
+                    Swal.fire("Error", "সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।", "error");
+                });
+        }
+    }
+
+
+    function processFilterResults(studentsList) {
+        if (studentsList.length > 0) {
+            currentStudents = studentsList;
+            currentPage = 1;    
+            renderTablePage();
+            genSummary(currentStudents);
+            document.getElementById("subDisplayCode").innerText = "Multiple/Filtered";
+            document.getElementById("subDisplayName").innerText = "Filtered Results";
+        } else {
+            currentStudents = [];
+            currentPage = 1;
+            renderTablePage();
+            document.getElementById("instituteList").innerHTML = "No students found.";
+            Swal.fire("দুঃখিত", "এই ফিল্টারে কোনো পরীক্ষার্থী পাওয়া যায়নি!", "info");
+        }
     }
 
     function toggleMoreButtons(btn) {
