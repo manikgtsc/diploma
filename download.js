@@ -14,7 +14,9 @@ function downloadRolls() {
             { header: 'Roll Number', key: 'roll', width: 15 }, 
             { header: 'Type', key: 'type', width: 12 },
             { header: 'Semi', key: 'semi', width: 12 },
-            { header: 'Subject Codes', key: 'subcodes', width: 60 }
+             { header: 'Department', key: 'dept', width: 25 },
+            { header: 'Subject Codes', key: 'subcodes', width: 60 },
+            { header: 'Institute', key: 'inst', width: 30 }
         ];
 
         // Header Design
@@ -38,7 +40,8 @@ function downloadRolls() {
         });
 
         sortedStudents.forEach((student, index) => {
-            const rowData = { sl: student.sl || (index + 1), roll: student.roll, type: student.type, semi: student.semi, subcodes: student.subcodeDetails};
+            const rowData = { sl: student.sl || (index + 1), roll: student.roll, type: student.type, 
+                             semi: student.semi, dept: student.dept, subcodes: student.subcodeDetails, inst: student.inst };
             if (index === 0) { 
                 rowData.code = subCode; 
                 rowData.nos = totalExaminees; 
