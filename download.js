@@ -113,7 +113,7 @@ function downloadSeatLabels() {
             }
         };
 
-        const centerName = "Pirganj Govt. Technical School & College";
+        const centerName = "Manikganj Govt. TSC, Manikganj";
         const examTitle = "Diploma in Engineering Examination 2025";
 
         // কলামের প্রশস্ততা সেট করা
