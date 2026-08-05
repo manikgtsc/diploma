@@ -1,19 +1,15 @@
- const API_URL = "https://script.google.com/macros/s/AKfycbzU_6xo1XsbuYdy6cwgUQCDwmdr49Og7h02-e2JdadzkKMIptyq_IxijDP0KVX3bM5_Qg/exec"; 
-    let allSubjectsData = {};
-    let allStudentsData = {}; 
-    let routineData = {};
+     const API_URL = "https://script.google.com/macros/s/AKfycbzU_6xo1XsbuYdy6cwgUQCDwmdr49Og7h02-e2JdadzkKMIptyq_IxijDP0KVX3bM5_Qg/exec"; 
+    let allStudents = {}; 
     let currentStudents = [];
+    let routine = {};
     let selectedDate = ""; 
     let examDates = [];
     let currentCalendarDate = new Date();
     let showPracticalExaminess = false;
-
     let currentPage = 1;
     const rowsPerPage = 500;
 
-    const uID = sessionStorage.getItem("userId"); 
-    if(!uID){location.href="index.html";}
-
+    const uID = sessionStorage.getItem("userId"); if(!uID){location.href="index.html";}
     window.onload = function() { initDropdowns();  fetchAllData();};
     document.body.classList.add('loading');
 
@@ -26,65 +22,50 @@
     }
 
     function fill(id, list){
-        const s = document.getElementById(id); 
-        if(!s) return;
+        const s = document.getElementById(id); if(!s) return;
         list.forEach(i => { const o = document.createElement("option"); o.value = i; o.innerText = i; s.appendChild(o); }); 
     }
 
     function fetchAllData() {
-        const cachedSubjects = localStorage.getItem('allSubjectsData');
-        const cachedRoutine = localStorage.getItem('routineData');
-        const cachedStudents = localStorage.getItem('allStudentsData');
+        const cachedStudents = localStorage.getItem('allStudents');
+        const cachedRoutine = localStorage.getItem('routine');
         const lastFetchTime = localStorage.getItem('lastFetchTime');
-
-
         const oneHour = 60 * 60 * 1000; 
         const isCacheValid = lastFetchTime && (Date.now() - lastFetchTime < oneHour);
 
-        if (cachedSubjects && cachedRoutine && cachedStudents && isCacheValid) {
-            console.log("Loading from Cache...");
-            allStudentsData = JSON.parse(cachedStudents);
-            allSubjectsData = JSON.parse(cachedSubjects);
-            routineData = JSON.parse(cachedRoutine);
+        if (cachedRoutine && cachedStudents && isCacheValid) {
+            console.log("Loading from Cache..."); 
+            allStudents = JSON.parse(cachedStudents); 
+            routine = JSON.parse(cachedRoutine);        
             generateDateButtons();
             hideLoader();
             return;
         }
 
         console.log("Fetching from Server...");
-        fetch(API_URL + "?action=getBGData")
-            .then(r => r.json())
+        fetch(API_URL + "?action=getBGData").then(r => r.json())
             .then(res => {
-                allSubjectsData = res.subjects;
-                allStudentsData = res.students;
-                routineData = res.routine || {};
-                localStorage.setItem('allSubjectsData', JSON.stringify(allSubjectsData));
-                localStorage.setItem('allStudentsData', JSON.stringify(allStudentsData));
-                localStorage.setItem('routineData', JSON.stringify(routineData));
+                allStudents = Array.isArray(res.students) ? res.students : (res.students.students || []);
+                routine = res.routine || {};
+                localStorage.setItem('allStudents', JSON.stringify(allStudents));
+                localStorage.setItem('routine', JSON.stringify(routine));
                 localStorage.setItem('lastFetchTime', Date.now());
                 generateDateButtons();
                 hideLoader();
             })
-            .catch(err => {
-                console.error("Data fetch error:", err);
-                hideLoader();
-                Swal.fire("Error", "সার্ভার থেকে ডাটা লোড করা সম্ভব হয়নি।", "error");
-            });
+            .catch(err => { console.error("Data fetch error:", err); hideLoader(); Swal.fire("Error", "সার্ভার থেকে ডাটা লোড করা সম্ভব হয়নি।", "error");});
     }
-
 
     function searchBySubjectCode() {
         showPracticalExaminess = false;
         const code = document.getElementById("searchInput").value.trim();
-        if (!code) { Swal.fire("খালি ইনপুট", "দয়া করে একটি বিষয় কোড দিন।", "warning"); return; }
+        if (!code) {Swal.fire("খালি ইনপুট", "দয়া করে একটি বিষয় কোড দিন।", "warning");  return; }
 
-        const subInfo = allSubjectsData.find(s => s.code.toString().trim() === code);
-        if (!subInfo) { Swal.fire("Invalid Subject Code", "এই subject code টি ডাটাবেসে পাওয়া যায়নি।", "error"); return; }
-        
+        const subInfo = findSubjectByCode(code, "");
+        if (!subInfo) {  Swal.fire("Invalid Subject Code", "এই subject code টি ডাটাবেসে পাওয়া যায়নি।", "error");  return; }
         updateSubjectDisplay(code, subInfo);
-        const studentList = Array.isArray(allStudentsData) ? allStudentsData : (allStudentsData.students || []);
 
-        currentStudents = studentList.filter(student => {
+        currentStudents = allStudents.filter(student => {
             if (!student || !student.subcodes) return false;
             const studentSubList = student.subcodes.toString().split(',').map(c => c.trim());
             return studentSubList.includes(code);
@@ -95,7 +76,7 @@
     }
 
     function generateDateButtons() {
-        examDates = Object.keys(routineData).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/)).sort();
+        examDates = Object.keys(routine).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/)).sort();
         currentCalendarDate = new Date(examDates[0]);
         renderCalendar();
     }
@@ -114,21 +95,16 @@
             const mmStr = String(month + 1).padStart(2, '0');
             const ddStr = String(d).padStart(2, '0');
             const dateKey = `${year}-${mmStr}-${ddStr}`;
-
-            const hasExam = routineData[dateKey] && routineData[dateKey].length > 0;
+            const hasExam = routine[dateKey] && routine[dateKey].length > 0;
             const statusClass = hasExam ? "has-exam" : "no-exam";
             
             htmlContent += `<div class="dateBtn ${statusClass}" onclick="showDailySummary('${dateKey}')">${ddStr}</div>`;
         }
-
         document.getElementById("dateContainer").innerHTML = htmlContent;
     }
 
     function navigateMonth(direction, event) {
-        if (event) {
-            event.stopPropagation(); 
-            event.preventDefault();
-        }
+        if (event) { event.stopPropagation();  event.preventDefault();}
         if(currentCalendarDate.getMonth() < 1 || currentCalendarDate.getMonth() > 10){
             currentCalendarDate = new Date(examDates[0]);
         } else{
@@ -137,37 +113,26 @@
         renderCalendar();
     }
 
-
-
     function searchByRoll() {
         const roll = document.getElementById("searchInput").value.trim();
         if (!roll) { Swal.fire("খালি ইনপুট", "দয়া করে একটি রোল নম্বর দিন।", "warning"); return; }
         
-        // FIX: Safe Array Retrieval
-        const studentList = Array.isArray(allStudentsData) ? allStudentsData : (allStudentsData.students || []);
-        
-        const student = studentList.find(s => s && s.roll && s.roll.toString().trim() === roll);
+        const student = allStudents.find(s => s && s.roll && s.roll.toString().trim() === roll);
         if (student) {
-            Swal.fire({
-                title: 'Examinee Profile',
+            Swal.fire({ title:'Examinee Profile',
                 html: `
                     <div class="text-start p-2">
                         <strong>Name:</strong> ${student.name || 'N/A'}<br>
                         <strong>Roll:</strong> ${student.roll || 'N/A'}<br>
-                        <strong>Subjects:</strong> ${student.subcodeDetails || 'N/A'}
+                        <strong>Semi:</strong> ${student.semi || 'N/A'}<br>
+                        <strong>Department:</strong> ${student.dept || 'N/A'}<br>
+                        <strong>Subjects:</strong> ${student.subcodeDetails || 'N/A'} <br>
+                        <strong>Institute</strong> ${student.inst || 'N/A'}
                     </div>
                 `
             });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Found Nothing',
-                text: 'এই রোল নম্বরের কোনো শিক্ষার্থী খুঁজে পাওয়া যায়নি।'
-            });
-        }
+        } else { Swal.fire({ icon: 'error', title: 'Found Nothing',  text: 'এই রোল নম্বরের কোনো শিক্ষার্থী খুঁজে পাওয়া যায়নি।'});}
     }
-
-
 
     function renderTablePage() {
         const tbody = document.getElementById("mytbody");
@@ -177,14 +142,12 @@
         const totalStudents = currentStudents.length;
         const totalPages = Math.ceil(totalStudents / rowsPerPage) || 1;
 
-        const startIndex = (currentPage - 1) * rowsPerPage;
+        const startIndex = (currentPage - 1) * rowsPerPage; 
         const endIndex = Math.min(startIndex + rowsPerPage, totalStudents);
         const pageData = currentStudents.slice(startIndex, endIndex);
 
-        if (pageData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">কোন ডাটা পাওয়া যায়নি</td></tr>`;
-        } else {
-
+        if (pageData.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">কোন ডাটা পাওয়া যায়নি</td></tr>`;} 
+        else {
             let practicalRolls = [];
             if(showPracticalExaminess){
                 const practicalList = getPracticalExaminees(currentStudents);
@@ -192,7 +155,6 @@
             }
 
             tbody.innerHTML = pageData.map(s => {
-
                 let rowClass = "";
                 if (showPracticalExaminess){
                 const isPractical = practicalRolls.has(s.roll);  rowClass = isPractical ? "" : "table-danger";
@@ -229,21 +191,16 @@
     function changePage(direction) {
         const totalPages = Math.ceil(currentStudents.length / rowsPerPage) || 1;
         currentPage += direction;
-
-        if (currentPage < 1) currentPage = 1;
-        if (currentPage > totalPages) currentPage = totalPages;
-
+        if (currentPage < 1) currentPage = 1;  if (currentPage > totalPages) currentPage = totalPages;
         renderTablePage();
         document.getElementById("mainTable").scrollIntoView({ behavior: 'smooth' }); 
     }
 
-
     function showDailySummary(dateKey) {
         selectedDate = formatDateBangla(dateKey); 
-        const exams = routineData[dateKey];
+        const exams = routine[dateKey];
 
-        if (!exams || exams.length === 0) { 
-            Swal.fire({ icon: 'info', title: `Date: ${selectedDate}`, text: "No exam scheduled." }); 
+        if (!exams || exams.length === 0) {  Swal.fire({ icon: 'info', title: `Date: ${selectedDate}`, text: "No exam scheduled." }); 
             return; 
         }
 
@@ -276,25 +233,18 @@
 
     function formatDateBangla(dateStr) {
         const parts = dateStr.split('-');
-        if(parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
+        if(parts.length === 3) { return `${parts[2]}-${parts[1]}-${parts[0]}`; }
         return dateStr;
     }
 
     function loadFullList(code) { 
-        Swal.close(); 
-        document.getElementById("searchInput").value = code; 
-        searchBySubjectCode(); 
+        Swal.close();  document.getElementById("searchInput").value = code;   searchBySubjectCode(); 
     }
 
     function goToShironamPage() {
-        if (currentStudents.length === 0) {
-            Swal.fire("ডেটা নেই", "প্রথমে সার্চ করে স্টুডেন্ট লিস্ট আনুন।", "warning");
-            return;
-        }
+        if (currentStudents.length === 0) { Swal.fire("ডেটা নেই", "প্রথমে সার্চ করে স্টুডেন্ট লিস্ট আনুন।", "warning"); return;}
         const examData = {
-            examName: "Diploma in Engineering Final Exam - 2026",
+            examName: "Diploma in Engineering Final Exam - 2025",
             subName: document.getElementById("subDisplayName").innerText,
             subCode: document.getElementById("subDisplayCode").innerText,
             examDate: selectedDate || "Not Selected"
@@ -312,23 +262,19 @@
     }
 
     function validateSubCode(val) {
-        if (!val || !allSubjectsData || !Array.isArray(allSubjectsData)) {
+        if (!val || !SUBJECTS_DATA) {
             document.getElementById("subDisplayCode").innerText = "---";
             document.getElementById("subDisplayName").innerText = "---";
             return;
         }
 
-        const subInfo = allSubjectsData.find(s => s.code.toString().trim() === val.trim());
-        
-        if (subInfo) {  
-            updateSubjectDisplay(val.trim(), subInfo);
+        const subInfo = findSubjectByCode(val.trim(), "");
+        if (subInfo) { updateSubjectDisplay(val.trim(), subInfo);
         } else {
-            document.getElementById("subDisplayCode").innerText = "---";
-            document.getElementById("subDisplayName").innerText = "---";
+            document.getElementById("subDisplayCode").innerText = "---"; document.getElementById("subDisplayName").innerText = "---";
         }
     }
 
-    // প্রতিষ্ঠান ভিত্তিক পরীক্ষার্থী সংখ্যা নির্ণয় করে institute summary তে দেখানো 
     function genSummary(data) {
         let counts = {};
         data.forEach(s => counts[s.inst] = (counts[s.inst] || 0) + 1);
@@ -343,12 +289,10 @@
         document.getElementById("specificSearch").style.display = s ? "block" : "none"; 
     }
 
-
-
     function showDetails(roll) {
         const student = currentStudents.find(s => s.roll.toString() === roll.toString());
-        const techCode = student.dept.toString().trim().match(/\d+/)[0];
-        
+        if (!student) return;
+        const tech = student.dept ? student.dept.toString().trim(): "";
         const currentSemi = (student.semi || "").toString().trim(); 
         const studentSubList = (student.subcodes || "").toString().split(',').map(s => s.trim());
 
@@ -356,11 +300,12 @@
         let referredRows = "";
 
         studentSubList.forEach(code => {
-            const sub = allSubjectsData.find(s => s.code.toString().trim() === code && s.deptCode.toString().trim() === techCode);
+            if (!code) return;
+            const sub = findSubjectByCode(code, tech);
 
             if (sub) {
-                const subSemi = sub.semi.toString().trim();
-                const isReferred = (subSemi !== currentSemi);
+                const subSemi = (sub.semi || "").toString().trim();
+                const isReferred = subSemi && (subSemi.toLowerCase() !== currentSemi.toLowerCase());
 
                 const rowHtml = `
                     <tr style="font-size: 13px;">
@@ -370,24 +315,25 @@
                         <td>${sub.tf || 0} + ${sub.pf || 0}</td>
                     </tr>`;
 
-                if (isReferred) referredRows += rowHtml;
-                else currentSemesterRows += rowHtml;
+                if (isReferred) { referredRows += rowHtml;
+                } else { currentSemesterRows += rowHtml;
+                }
             } else {
                 referredRows += `<tr class="table-light"><td class="fw-bold">${code}</td><td class="text-muted text-start">Not matched with Dept: ${techCode}</td><td>-</td><td>-</td></tr>`;
             }
         });
 
         Swal.fire({
-            title: `Examinee Profile`,  width: '750px',
+            title: `Examinee Profile`, width: '750px',
             html: `
                 <div class="text-start mb-3" style="font-size: 14px; background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 5px solid #1e3a5f;">
                     <div class="row">
-                        <div class="col-md-6"><strong>Name:</strong> ${student.name}</div>
-                        <div class="col-md-6"><strong>Roll:</strong> ${student.roll}</div>
-                        <div class="col-md-6"><strong>Technology:</strong> ${student.dept}</div>
-                        <div class="col-md-6"><strong>Current Semi:</strong> <span class="badge bg-dark">${student.semi}</span></div>
-                        <div class="col-md-6"><strong>Institute:</strong> ${student.inst}</div>
-                        <div class="col-md-6"><strong>Type:</strong> ${student.type}</div>
+                        <div class="col-md-6"><strong>Name:</strong> ${student.name || 'N/A'}</div>
+                        <div class="col-md-6"><strong>Roll:</strong> ${student.roll || 'N/A'}</div>
+                        <div class="col-md-6"><strong>Technology:</strong> ${student.dept || 'N/A'}</div>
+                        <div class="col-md-6"><strong>Current Semi:</strong> <span class="badge bg-dark">${student.semi || 'N/A'}</span></div>
+                        <div class="col-md-6"><strong>Institute:</strong> ${student.inst || 'N/A'}</div>
+                        <div class="col-md-6"><strong>Type:</strong> ${student.type || 'N/A'}</div>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -411,6 +357,7 @@
     }
 
     function filterSearch() {
+        showPracticalExaminess = false;
         const inst = document.getElementById("selectInst").value;
         const tech = document.getElementById("selectTech").value;
         const semi = document.getElementById("selectSemi").value;
@@ -418,47 +365,36 @@
 
         Swal.fire({ title: 'ফিল্টার করা হচ্ছে...', didOpen: () => Swal.showLoading() });
 
-        // ১. আগে চেক করি allStudentsData তে ডাটা আছে কিনা
-        const studentList = Array.isArray(allStudentsData) ? allStudentsData : (allStudentsData.students || []);
-
-        if (studentList && studentList.length > 0) {
+        if (allStudents.length > 0) {
             console.log("Filtering from Local Memory...");
-            
-            // Local Data থেকে ফিল্টার করা হচ্ছে
-            const filteredList = studentList.filter(student => {
-                if (!student) return false;
 
-                // অপশনাল: আপনার ড্রপডাউনের ডাটার সাথে মিলিয়ে Filter Conditions তৈরি
+            //Filtering From Local Data
+            const filteredList = allStudents.filter(student => {
+                if (!student) return false;
                 const matchInst = !inst || student.inst === inst;
                 const matchTech = !tech || (student.dept && student.dept.includes(tech));
                 const matchSemi = !semi || student.semi === semi;
-                const matchSyllabus = !syllabus || student.syllabus === syllabus; // যদি আপনার ডাটায় syllabus ফিল্ড থাকে
+                const matchSyllabus = !syllabus || student.syllabus === syllabus;
 
                 return matchInst && matchTech && matchSemi && matchSyllabus;
             });
 
-            // রেজাল্ট হ্যান্ডলিং
             processFilterResults(filteredList);
             Swal.close();
 
         } else {
-            // ২. যদি Local এ ডাটা না থাকে (Fallback mechanism), তবেই Server-এ যাবে
+            // If localData not available, fetch from Server & Filter
             console.log("Local data empty. Fetching filter data from Server...");
-            const params = new URLSearchParams({
-                action: "specificSearch", inst: inst, tech: tech, semi: semi, syllabus: syllabus
-            });
+            const params = new URLSearchParams({ action: "specificSearch", inst: inst, tech: tech, semi: semi, syllabus: syllabus });
 
-            fetch(`${API_URL}?${params.toString()}`)
-                .then(r => r.json())
+            fetch(`${API_URL}?${params.toString()}`) .then(r => r.json())
                 .then(res => {
                     Swal.close();
                     const fetchedList = Array.isArray(res) ? res : (res.students || []);
                     processFilterResults(fetchedList);
                 })
-                .catch(err => {
-                    console.error(err);
-                    Swal.fire("Error", "সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।", "error");
-                });
+                .catch(err => {  console.error(err);  Swal.fire("Error", "সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।", "error");
+             });
         }
     }
 
