@@ -116,7 +116,7 @@ function downloadSeatLabels() {
             }
         };
 
-        const centerName = "Manikganj Govt. TSC, Manikganj";
+        const centerName = "Manikganj Govt. Technical School & College";
         const examTitle = "Diploma in Engineering Examination 2025";
 
         // কলামের প্রশস্ততা সেট করা
